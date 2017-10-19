@@ -5,7 +5,7 @@ import re, string
 FEATURES = ["context", "qns"]
 LABEL_POS = "pos"
 LABEL_LEN = "length"
-model_root = './models/MLP/'
+model_root = './models/MLP/regressor/'
 model_pos = 'pos/'
 model_len = 'len/'
 
@@ -20,10 +20,21 @@ def getData(name):
             c = data[i]["paragraphs"][x]["context"]
             for y in range(len(data[i]["paragraphs"][x]["qas"])):
                 qn = data[i]["paragraphs"][x]["qas"][y]["question"]
-                mid = qn = data[i]["paragraphs"][x]["qas"][y]["id"]
-                pos = int(data[i]["paragraphs"][x]["qas"][y]["answer"]["answer_start"])
-                length = len(data[i]["paragraphs"][x]["qas"][y]["answer"]["text"].split(" "))
+                mid = data[i]["paragraphs"][x]["qas"][y]["id"]
                 
+                if(data[i]["paragraphs"][x]["qas"][y]["answer"] != ""):
+                    pos = int(data[i]["paragraphs"][x]["qas"][y]["answer"]["answer_start"])
+                    length = len(data[i]["paragraphs"][x]["qas"][y]["answer"]["text"].split(" "))
+                    if LABEL_POS in f:
+                        f[LABEL_POS].append(pos)
+                    else:
+                        f[LABEL_POS] = [pos]
+                        
+                    if LABEL_LEN in f:
+                        f[LABEL_LEN].append(length)
+                    else:
+                        f[LABEL_LEN] = [length]
+                    
                 ids.append(mid)
                 
                 if FEATURES[0] in f:
@@ -35,57 +46,49 @@ def getData(name):
                     f[FEATURES[1]].append(qn)
                 else:
                     f[FEATURES[1]] = [qn]
-                    
-                if LABEL_POS in f:
-                    f[LABEL_POS].append(pos)
-                else:
-                    f[LABEL_POS] = [pos]
-                    
-                if LABEL_LEN in f:
-                    f[LABEL_LEN].append(length)
-                else:
-                    f[LABEL_LEN] = [length]
     return f, ids;
 
 def input_pos(data_set):
     feature_cols = {k: tf.string_to_hash_bucket_fast(data_set[k], 1) for k in FEATURES}
-    labels = tf.constant(data_set[LABEL_POS], dtype=tf.int32)
+    labels = None
+    if LABEL_POS in data_set:
+        labels = tf.constant(data_set[LABEL_POS], dtype=tf.int32)
     return feature_cols, labels
     
 def input_len(data_set):
     feature_cols = {k: tf.string_to_hash_bucket_fast(data_set[k], 1) for k in FEATURES}
-    labels = tf.constant(data_set[LABEL_LEN], dtype=tf.int32)
+    labels = None
+    if LABEL_LEN in data_set:
+        labels = tf.constant(data_set[LABEL_LEN], dtype=tf.int32)
     return feature_cols, labels
     
 def getModelPos():
     feature_columns = [tf.contrib.layers.real_valued_column(k) for k in FEATURES]
-    classifier = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns,
+    regressor = tf.contrib.learn.DNNRegressor(feature_columns=feature_columns,
                                             hidden_units=[100, 200, 100],
-                                            n_classes=5000,
-                                            optimizer=tf.train.ProximalAdagradOptimizer(
-                                              learning_rate=0.001,
-                                              l1_regularization_strength=0.0001
+                                            optimizer=tf.train.AdadeltaOptimizer(
+                                                    learning_rate=0.01,
+                                                    rho=0.001, 
+                                                    epsilon=0.1, 
+                                                    use_locking=False, 
+                                                    name='AdaDelta'
                                             ),
                                             model_dir=model_root + model_pos);
-    return classifier
+    return regressor
 
 def getModelLen():
     feature_columns = [tf.contrib.layers.real_valued_column(k) for k in FEATURES]
-    classifier = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns,
+    regressor = tf.contrib.learn.DNNRegressor(feature_columns=feature_columns,
                                             hidden_units=[100, 200, 100],
-                                            n_classes=5000,
-                                            optimizer=tf.train.ProximalAdagradOptimizer(
-                                              learning_rate=0.001,
-                                              l1_regularization_strength=0.0001
+                                            optimizer=tf.train.AdadeltaOptimizer(
+                                                    learning_rate=0.01,
+                                                    rho=0.001, 
+                                                    epsilon=0.1, 
+                                                    use_locking=False, 
+                                                    name='AdaDelta'
                                             ),
                                             model_dir=model_root + model_len);
-    return classifier
-
-def train(classifier, input_x):
-    classifier.fit(input_fn=lambda:input_x, steps=100)
-    
-def predict(classifier, input_x):
-    classifier.predict(input_fn=lambda:input_x)
+    return regressor
     
 def normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace."""
@@ -103,53 +106,59 @@ def normalize_answer(s):
         return text.lower()
     
     return white_space_fix(remove_articles(remove_punc(lower(s))))
-    
-    
+
 data_set, ids = getData('train.json');
 
 m_pos = getModelPos();
 m_len = getModelLen();
 
-m_pos.fit(input_fn=lambda:input_pos(data_set), steps=100)
-m_len.fit(input_fn=lambda:input_len(data_set), steps=100)
+m_pos.fit(input_fn=lambda:input_pos(data_set), steps=1000)
+m_len.fit(input_fn=lambda:input_len(data_set), steps=1000)
 
-pos_preds = m_pos.predict_classes(input_fn=lambda:input_pos(data_set), as_iterable=False);
-len_preds = m_len.predict_classes(input_fn=lambda:input_len(data_set), as_iterable=False);
+pos_preds = m_pos.predict(input_fn=lambda:input_pos(data_set), as_iterable=False);
+len_preds = m_len.predict(input_fn=lambda:input_len(data_set), as_iterable=False);
 
 data = "Id,Answer\n"
 for i in range(len(ids)):
     mid = ids[i]
-    length = len_preds[i];
-    start = pos_preds[i];
+    length = int(len_preds[i]);
+    if length == 0:
+        length = 2
+    start = int(pos_preds[i]);
     m_context = data_set[FEATURES[0]][i][start:];
     arr = m_context.split(" ");
     
     stri = ""
-    for i in range(length):
-        stri += arr[i] + " ";
+    for x in range(1, length):
+        stri += arr[x] + " ";
         
     data += mid + "," + normalize_answer(stri) + "\n"
-    
+
+data = data.encode('utf-8')
 with open('answers.csv','wb') as file:
     file.write(data)
-    
+
 data_set, ids = getData('test.json');
-pos_preds = m_pos.predict_classes(input_fn=lambda:input_pos(data_set), as_iterable=False);
-len_preds = m_len.predict_classes(input_fn=lambda:input_len(data_set), as_iterable=False);
+
+pos_preds = m_pos.predict(input_fn=lambda:input_pos(data_set), as_iterable=False);
+len_preds = m_len.predict(input_fn=lambda:input_len(data_set), as_iterable=False);
 
 data = "Id,Answer\n"
 for i in range(len(ids)):
     mid = ids[i]
-    length = len_preds[i];
-    start = pos_preds[i];
+    length = int(len_preds[i]) + 1;
+    if length == 1:
+        length += 1
+    start = int(pos_preds[i]);
     m_context = data_set[FEATURES[0]][i][start:];
     arr = m_context.split(" ");
     
     stri = ""
-    for i in range(length):
-        stri += arr[i] + " ";
+    for x in range(1, length):
+        stri += arr[x] + " ";
         
     data += mid + "," + normalize_answer(stri) + "\n"
-    
+
+data = data.encode('utf-8')
 with open('submission.csv','wb') as file:
     file.write(data)
