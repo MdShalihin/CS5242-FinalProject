@@ -1,23 +1,14 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-import urllib
-import sys
-import os
-import zipfile
-import tarfile
-import json 
-import hashlib
-import re
-import itertools
+import string
+import json
 import operator
 from tqdm import tqdm
 
 glove_vectors_file = "glove/glove.6B.50d.txt"
-
-train_set_file = "dataset/train.json"
-test_set_file = "dataset/test.json"
+train_set_file = "squad/train.json"
+test_set_file = "squad/test.json"
 
 # Deserialize GloVe vectors
 glove_wordmap = {}
@@ -69,12 +60,24 @@ def sentence2sequence(sentence):
             else:
                 i = i-1
             if i == 0:
-                # word OOV
-                # https://arxiv.org/pdf/1611.01436.pdf
                 rows.append(fill_unk(token))
                 words.append(token)
                 break
+            
     return np.array(rows), words
+
+def normalize(s):
+    def white_space_fix(text):
+        return ' '.join(text.split())
+
+    def remove_punc(text):
+        exclude = set(string.punctuation)
+        return ''.join(ch for ch in text if ch not in exclude)
+
+    def lower(text):
+        return text.lower()
+    
+    return white_space_fix(remove_punc(lower(s)))
 
 def contextualize(set_file):
     """
@@ -90,37 +93,37 @@ def contextualize(set_file):
     """
     data = []
     ids = []
-    with open(set_file) as data_file:    
+    
+    with open(set_file, "r") as data_file:    
         train = json.load(data_file)
-        
-    for i in range(len(train)):
-        for x in range(len(train[i]["paragraphs"])):
-            c = train[i]["paragraphs"][x]["context"].split(".")
-            context = []
-            for a in c:
-                context.append(sentence2sequence(a + "."))
-            for y in range(len(train[i]["paragraphs"][x]["qas"])):
-                qn = train[i]["paragraphs"][x]["qas"][y]["question"]
-                mid = train[i]["paragraphs"][x]["qas"][y]["id"]
-                
-                pos = ""
-                ans = ""
-                
-                if(train[i]["paragraphs"][x]["qas"][y]["answer"] != ""):
-                    pos = str(train[i]["paragraphs"][x]["qas"][y]["answer"]["answer_start"])
-                    ans = train[i]["paragraphs"][x]["qas"][y]["answer"]["text"]
+        for i in range(len(train)):
+            for x in range(len(train[i]["paragraphs"])):
+                c = unicode(train[i]["paragraphs"][x]["context"]).encode('utf8').split(".")
+                context = []
+                for a in c:
+                    if a.strip() != "":
+                        context.append(sentence2sequence(normalize(a.strip()) + "."))
+                for y in range(len(train[i]["paragraphs"][x]["qas"])):
+                    qn = normalize(train[i]["paragraphs"][x]["qas"][y]["question"])
+                    mid = unicode(train[i]["paragraphs"][x]["qas"][y]["id"]).encode('utf8')
                     
-                data.append((tuple(zip(*context))+
-                             sentence2sequence(qn)+
-                             sentence2sequence(ans)+
-                             ([int(s) for s in pos.split()],)))
-                ids.append(mid)
+                    pos = ""
+                    ans = "No answer"
+                    
+                    if(train[i]["paragraphs"][x]["qas"][y]["answer"] != ""):
+                        pos = str(train[i]["paragraphs"][x]["qas"][y]["answer"]["answer_start"])
+                        ans = normalize(train[i]["paragraphs"][x]["qas"][y]["answer"]["text"])
+                        
+                    data.append((tuple(zip(*context))+
+                                 sentence2sequence(unicode(qn).encode('utf8'))+
+                                 sentence2sequence(unicode(ans).encode('utf8'))+
+                                 ([int(s) for s in unicode(pos).encode('utf8').split()],)))
+                    ids.append(mid)
     
     return data, ids
 
 train_data, train_ids = contextualize(train_set_file)
 test_data, test_ids = contextualize(test_set_file)
-
 final_train_data = []
 
 def finalize(data):
