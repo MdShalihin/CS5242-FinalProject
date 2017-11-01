@@ -139,7 +139,7 @@ def predict_words(data, contexts):
         start = int(preds[i]);
         con = normalize(contexts[int(data[CONTEXT][i])]).split(" ")
         if len(con) < start:
-            start = random.randint(0,start)
+            start = random.randint(0,len(con) - 1)
         words.append(con[start]);
     return words
 

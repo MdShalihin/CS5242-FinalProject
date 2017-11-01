@@ -10,6 +10,7 @@ import tarfile
 import json 
 import hashlib
 import re
+import itertools
 import operator
 from tqdm import tqdm
 
@@ -101,14 +102,18 @@ def contextualize(set_file):
             for y in range(len(train[i]["paragraphs"][x]["qas"])):
                 qn = train[i]["paragraphs"][x]["qas"][y]["question"]
                 mid = train[i]["paragraphs"][x]["qas"][y]["id"]
+                
+                pos = ""
                 ans = ""
                 
                 if(train[i]["paragraphs"][x]["qas"][y]["answer"] != ""):
+                    pos = str(train[i]["paragraphs"][x]["qas"][y]["answer"]["answer_start"])
                     ans = train[i]["paragraphs"][x]["qas"][y]["answer"]["text"]
                     
                 data.append((tuple(zip(*context))+
                              sentence2sequence(qn)+
-                             sentence2sequence(ans)))
+                             sentence2sequence(ans)+
+                             ([int(s) for s in pos.split()],)))
                 ids.append(mid)
     
     return data, ids
@@ -124,7 +129,7 @@ def finalize(data):
     """
     final_data = []
     for cqas in train_data:
-        contextvs, contextws, qvs, qws, avs, aws = cqas
+        contextvs, contextws, qvs, qws, avs, aws, spt = cqas
 
         lengths = accumulate(len(cvec) for cvec in contextvs)
         context_vec = np.concatenate(contextvs)
@@ -132,13 +137,10 @@ def finalize(data):
 
         # Location markers for the beginnings of new sentences.
         sentence_ends = np.array(list(lengths)) 
-        final_data.append((context_vec, sentence_ends, qvs, context_words, cqas, avs, aws))
+        final_data.append((context_vec, sentence_ends, qvs, spt, context_words, cqas, avs, aws))
     return np.array(final_data)
 
 def accumulate(iterable, func=operator.add):
-    'Return running totals'
-    # accumulate([1,2,3,4,5]) --> 1 3 6 10 15
-    # accumulate([1,2,3,4,5], operator.mul) --> 1 2 6 24 120
     it = iter(iterable)
     try:
         total = next(it)
@@ -268,7 +270,7 @@ def attention(c, mem, existing_facts):
         acts as a binary mask for which facts exist and which do not.
 
     """
-    with tf.variable_scope("attending") as scope:
+    with tf.variable_scope("attending"):
         # attending: The metrics by which we decide what to attend to.
         attending = tf.concat([c, mem, re_q, c * re_q,  c * mem, (c-re_q)**2, (c-mem)**2], 2)
 
@@ -440,7 +442,7 @@ def prep_batch(batch_data, more_data = False):
     """
         Prepare all the preproccessing that needs to be done on a batch-by-batch basis.
     """
-    context_vec, sentence_ends, questionvs, context_words, cqas, answervs, _ = zip(*batch_data)
+    context_vec, sentence_ends, questionvs, spt, context_words, cqas, answervs, _ = zip(*batch_data)
     ends = list(sentence_ends)
     maxend = max(map(len, ends))
     aends = np.zeros((len(ends), maxend))

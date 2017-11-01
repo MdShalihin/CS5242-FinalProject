@@ -1,6 +1,6 @@
+import re, string
 import json
 import tensorflow as tf
-import re, string
 
 FEATURES = ["context", "qns"]
 LABEL_POS = "pos"

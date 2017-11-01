@@ -122,13 +122,13 @@ def RNN(x, weights, biases):
     # we only want the last output
     return tf.matmul(outputs[-1], weights['out']) + biases['out']
 
-data, contexts, c, ids = getData('train.json')
+data, contexts, c, ids = getData('small_dataset/train.json')
 training_data = read_data(normalize(c).split(" "))
 
 dictionary, reverse_dictionary = build_dataset(training_data)
 vocab_size = len(dictionary)
 
-t_data, t_contexts, t_c, t_ids = getData('test.json')
+t_data, t_contexts, t_c, t_ids = getData('small_dataset/test.json')
 t_training_data = read_data(normalize(t_c).split(" "))
 words = predict_words(t_data, t_contexts)
 t_dictionary, t_reverse_dictionary = build_dataset(t_training_data)
