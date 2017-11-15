@@ -73,12 +73,6 @@ def read_dataset(dataset, tier, vocab):
     return context_data, query_data, question_uuid_data
 
 
-
-def prepare_dev2(config):
-    dev = squad_dataset(config.question_dev, config.context_dev, config.answer_dev)
-
-
-
 def prepare_dev(prefix, dev_filename, vocab):
     dev_dataset = maybe_download(squad_base_url, dev_filename, prefix)
     dev_data = data_from_json(os.path.join(prefix, dev_filename))
