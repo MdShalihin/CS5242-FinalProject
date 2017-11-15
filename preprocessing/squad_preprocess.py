@@ -17,7 +17,7 @@ sys.setdefaultencoding('utf8')
 random.seed(42)
 np.random.seed(42)
 
-squad_base_url = "https://raw.githubusercontent.com/ShalihinEin/CS5242-FinalProject/master/"
+squad_base_url = "https://raw.githubusercontent.com/ShalihinEin/CS5242-FinalProject/master/download/squad/"
 
 # Size train: 30288272
 # size dev: 4854279
