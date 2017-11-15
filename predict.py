@@ -25,10 +25,6 @@ from data_utils import *
 import logging
 logging.basicConfig(level=logging.INFO)
 
-
-
-
-
 def initialize_vocab(vocab_path):
     if tf.gfile.Exists(vocab_path):
         rev_vocab = []
@@ -84,12 +80,9 @@ def prepare_dev2(config):
 
 
 def prepare_dev(prefix, dev_filename, vocab):
-    # Don't check file size, since we could be using other datasets
     dev_dataset = maybe_download(squad_base_url, dev_filename, prefix)
-
     dev_data = data_from_json(os.path.join(prefix, dev_filename))
     context_data, question_data, question_uuid_data = read_dataset(dev_data, 'dev', vocab)
-
 
     def normalize(dat):
         return map(lambda tok: map(int, tok.split()), dat)
@@ -185,11 +178,25 @@ def run_func2(dataset, config):
                 curr_ans = unicode(answers[i], "utf-8")
                 f.write("%s\n" %(curr_ans))
 
+def normalize_answer(s):
+    """Lower text and remove punctuation, articles and extra whitespace."""
+    def remove_articles(text):
+        return re.sub(r'\b(a|an|the)\b', ' ', text)
+    
+    def white_space_fix(text):
+        return ' '.join(text.split())
+    
+    def remove_punc(text):
+        exclude = set(string.punctuation)
+        return ''.join(ch for ch in text if ch not in exclude)
+    
+    def lower(text):
+        return text.lower()
+    
+    return white_space_fix(remove_articles(remove_punc(lower(s))))
+
 def run_func():
     config = Config()
-
-    # ========= Load Dataset =========
-    # You can change this code to load dataset in your own way
     vocab, rev_vocab = initialize_vocab(config.vocab_path)
 
     dev_path = "download/squad/dev-v1.1.json"
@@ -214,13 +221,17 @@ def run_func():
 
     qa = QASystem(encoder, decoder, embeddings, config)
     
+    data = "Id,Answer\n"
+    
     with tf.Session() as sess:
         qa.initialize_model(sess, config.train_dir)
         answers, _ = generate_answers(sess, qa, dataset, question_uuid_data, rev_vocab)
-        # write to json file to root dir
-        with io.open('test-prediction.json', 'w', encoding='utf-8') as f:
-            f.write(unicode(json.dumps(answers, ensure_ascii=False)))
+        for a in answers:
+            ans = answers[a]
+            data += a + "," + normalize_answer(ans) + "\n"
 
+    with open('submission.csv','wb') as file:
+        file.write(data)
 
 
 if __name__ == "__main__":
