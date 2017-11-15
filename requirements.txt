@@ -4,4 +4,4 @@ nltk >= 3.2.2
 tqdm
 matplotlib
 pyprind
-/tmp/tensorflow_pkg/tensorflow-1.4.0-py2-none-any.whl
+tensorflow==1.4.0
