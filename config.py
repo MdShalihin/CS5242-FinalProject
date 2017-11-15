@@ -1,15 +1,15 @@
 class Config:
-    num_epochs = 30
+    num_epochs = 35
     batch_size = 32
     train_embeddings=0
-    max_gradient_norm=0.8
-    hidden_state_size=200
+    max_gradient_norm=1
+    hidden_state_size=120
     embedding_size=300
     data_dir="data/squad"
     vocab_path="data/squad/vocab.dat"
     embed_path="data/squad/glove.trimmed.300.npz"
-    dropout_val=0.7
-    train_dir="models_lstm_basic"
+    dropout_val=0.8
+    train_dir="models_match_lstm"
     use_match=1
     
 

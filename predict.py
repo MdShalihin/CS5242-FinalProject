@@ -94,24 +94,6 @@ def prepare_dev(prefix, dev_filename, vocab):
 
 
 def generate_answers(sess, model, dataset, uuid_data, rev_vocab):
-    """
-    Loop over the dev or test dataset and generate answer.
-
-    Note: output format must be answers[uuid] = "real answer"
-    You must provide a string of words instead of just a list, or start and end index
-
-    In main() function we are dumping onto a JSON file
-
-    evaluate.py will take the output JSON along with the original JSON file
-    and output a F1 and EM
-
-    You must implement this function in order to submit to Leaderboard.
-
-    :param sess: active TF session
-    :param model: a built QASystem model
-    :param rev_vocab: this is a list of vocabulary that maps index to actual words
-    :return:
-    """
     answers = {}
 
     q,c,a = dataset
@@ -151,33 +133,6 @@ def generate_answers(sess, model, dataset, uuid_data, rev_vocab):
     return answers, answers_canonical
 
 
-
-def run_func2(dataset, config):
-    vocab, rev_vocab = initialize_vocab(config.vocab_path)
-
-    q, c, a = zip(*[[_q, _c, _a] for (_q, _c, _a) in dataset])
-
-    dataset = [q, c, a]
-
-    embed_path = config.embed_path
-
-    embeddings = get_trimmed_glove_vectors(embed_path)
-
-    encoder = Encoder(config.hidden_state_size)
-    decoder = Decoder(config.hidden_state_size)
-
-    qa = QASystem(encoder, decoder, embeddings, config)
-    question_uuid_data = [i for i in xrange(len(a))]
-    
-    with tf.Session() as sess:
-        qa.initialize_model(sess, config.train_dir)
-        answers, answers_canonical = generate_answers(sess, qa, dataset, question_uuid_data, rev_vocab)
-        # write to json file to root dir
-        with io.open('dev-prediction.txt', 'w', encoding='utf-8') as f:
-            for i in xrange(len(a)):
-                curr_ans = unicode(answers[i], "utf-8")
-                f.write("%s\n" %(curr_ans))
-
 def normalize_answer(s):
     """Lower text and remove punctuation, articles and extra whitespace."""
     def remove_articles(text):
@@ -199,7 +154,7 @@ def run_func():
     config = Config()
     vocab, rev_vocab = initialize_vocab(config.vocab_path)
 
-    dev_path = "download/squad/dev-v1.1.json"
+    dev_path = "download/squad/test.json"
     dev_dirname = os.path.dirname(os.path.abspath(dev_path))
     dev_filename = os.path.basename(dev_path)
     context_data, question_data, question_uuid_data = prepare_dev(dev_dirname, dev_filename, vocab)
@@ -228,7 +183,7 @@ def run_func():
         answers, _ = generate_answers(sess, qa, dataset, question_uuid_data, rev_vocab)
         for a in answers:
             ans = answers[a]
-            data += a + "," + normalize_answer(ans) + "\n"
+            data += a + "," + normalize_answer(ans).replace(" s ", "s ") + "\n"
 
     with open('submission.csv','wb') as file:
         file.write(data)

@@ -148,7 +148,6 @@ if __name__ == '__main__':
 
     train_path = pjoin(args.source_dir, "train")
     valid_path = pjoin(args.source_dir, "val")
-    dev_path = pjoin(args.source_dir, "dev")
 
     create_vocabulary(vocab_path,
                       [pjoin(args.source_dir, "train.context"),
@@ -158,16 +157,10 @@ if __name__ == '__main__':
     vocab, rev_vocab = initialize_vocabulary(pjoin(args.vocab_dir, "vocab.dat"))
 
     # ======== Trim Distributed Word Representation =======
-    # If you use other word representations, you should change the code below
-
     process_glove(args, rev_vocab, args.source_dir + "/glove.trimmed.{}".format(args.glove_dim),
                   random_init=args.random_init)
 
     # ======== Creating Dataset =========
-    # We created our data files seperately
-    # If your model loads data differently (like in bulk)
-    # You should change the below code
-
     x_train_dis_path = train_path + ".ids.context"
     y_train_ids_path = train_path + ".ids.question"
     data_to_token_ids(train_path + ".context", x_train_dis_path, vocab_path)

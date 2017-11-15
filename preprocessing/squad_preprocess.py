@@ -17,7 +17,7 @@ sys.setdefaultencoding('utf8')
 random.seed(42)
 np.random.seed(42)
 
-squad_base_url = "https://rajpurkar.github.io/SQuAD-explorer/dataset/"
+squad_base_url = "https://raw.githubusercontent.com/ShalihinEin/CS5242-FinalProject/master/"
 
 # Size train: 30288272
 # size dev: 4854279
@@ -202,8 +202,8 @@ if __name__ == '__main__':
     if not os.path.exists(data_prefix):
         os.makedirs(data_prefix)
 
-    train_filename = "train-v1.1.json"
-    dev_filename = "dev-v1.1.json"
+    train_filename = "train.json"
+    dev_filename = "test.json"
 
     maybe_download(squad_base_url, train_filename, download_prefix)
 
