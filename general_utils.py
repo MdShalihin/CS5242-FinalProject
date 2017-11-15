@@ -3,9 +3,6 @@ import sys
 import logging
 import numpy as np
 
-
-
-
 def get_logger(filename):
     logger = logging.getLogger('logger')
     logger.setLevel(logging.DEBUG)

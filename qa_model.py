@@ -4,21 +4,19 @@ from __future__ import print_function
 
 import time
 import logging
-
 import numpy as np
 import sys
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
+
 from general_utils import Progbar
 from data_utils import *
 from collections import defaultdict as ddict
-
 from attention_wrapper import _maybe_mask_score
 from attention_wrapper import *
 from evaluate import exact_match_score, f1_score
 from tensorflow.python import debug as tf_debug
 from tensorflow.python.ops import array_ops
-
 
 import matplotlib
 matplotlib.use('Agg')
@@ -90,13 +88,10 @@ class BaselineDecoder(object):
         return [func(logit_1),func(logit_2)]
 
 
-   
 class Decoder(object):
     def __init__(self, hidden_size, initializer= lambda : None):
         self.hidden_size = hidden_size
         self.init_weights = initializer
-
-
 
     def run_lstm(self, encoded_rep, q_rep, masks):
         encoded_question, encoded_passage = encoded_rep
@@ -119,8 +114,7 @@ class Decoder(object):
             
         output_attender = tf.concat([output_attender_fw, output_attender_bw], axis = -1) # (-1, P, 2*H)
         return output_attender
-            
-
+    
     def run_match_lstm(self, encoded_rep, masks):
         encoded_question, encoded_passage = encoded_rep
         masks_question, masks_passage = masks
@@ -142,10 +136,8 @@ class Decoder(object):
 
             output_attender_bw = _reverse(output_attender_bw, masks_passage, 1, 0)
 
-        
         output_attender = tf.concat([output_attender_fw, output_attender_bw], axis = -1) # (-1, P, 2*H)
         return output_attender
-
 
     def run_answer_ptr(self, output_attender, masks, labels):
         batch_size = tf.shape(output_attender)[0]
@@ -162,34 +154,23 @@ class Decoder(object):
             answer_ptr_attender = AttentionWrapper(cell_answer_ptr, attention_mechanism_answer_ptr, cell_input_fn = answer_ptr_cell_input_fn)
             logits, _ = tf.nn.static_rnn(answer_ptr_attender, labels, dtype = tf.float32)
 
-        return logits 
-
-
-
-    def decode_lstm(self, encoded_rep, q_rep, masks, labels):
-        """ 
-            Ablation study on match-LSTM (replace match-LSTM with a simple LSTM)
-        """
-        output_lstm = self.run_lstm(encoded_rep, q_rep, masks)
-        logits = self.run_answer_ptr(output_lstm, masks, labels)
-        
         return logits
 
-
+    def decode_lstm(self, encoded_rep, q_rep, masks, labels):
+        output_lstm = self.run_lstm(encoded_rep, q_rep, masks)
+        logits = self.run_answer_ptr(output_lstm, masks, labels)
+        return logits
 
     def decode(self, encoded_rep, q_rep, masks, labels):
         """
-        takes in encoded_rep
-        and output a probability estimation over
-        all paragraph tokens on which token should be
-        the start of the answer span, and which should be
-        the end of the answer span.
+        takes in encoded_rep and output a probability estimation over
+        all paragraph tokens on which token should be the start of the answer span,
+        and which should be the end of the answer span.
 
         :param encoded_rep: 
         :param masks
         :param labels
-
-
+        
         :return: logits: for each word in passage the probability that it is the start word and end word.
         """
 
@@ -202,17 +183,16 @@ class Decoder(object):
 class QASystem(object):    
     def __init__(self, encoder, decoder, pretrained_embeddings, config):
         """
-        Initializes your System
+        Initializes System
 
-        :param encoder: an encoder that you constructed in train.py
-        :param decoder: a decoder that you constructed in train.py
+        :param encoder: an encoder constructed in train.py
+        :param decoder: a decoder constructed in train.py
         :param args: pass in more arguments as needed
         """
 
         # ==== set up logging ======
         logger = logging.getLogger("QASystemLogger")
         self.logger = logger
-
 
         # ==== set up placeholder tokens ========
         self.embeddings = pretrained_embeddings
@@ -248,11 +228,9 @@ class QASystem(object):
                 self.global_grad = tf.global_norm(grads)
                 self.gradients = zip(grads, vars)
 
-
             self.train_op = adam_optimizer.apply_gradients(self.gradients)
 
         self.init = tf.global_variables_initializer()
-
 
     def get_feed_dict(self, questions, contexts, answers, dropout_val):
         """
@@ -266,7 +244,6 @@ class QASystem(object):
         padded_questions, question_lengths = pad_sequences(questions, 0)
         padded_contexts, passage_lengths = pad_sequences(contexts, 0)
 
-
         feed = {
             self.question_ids : padded_questions,
             self.passage_ids : padded_contexts,
@@ -277,7 +254,6 @@ class QASystem(object):
         }
 
         return feed
-
 
     def setup_word_embeddings(self):
         '''
@@ -293,7 +269,6 @@ class QASystem(object):
             self.question = tf.nn.dropout(question_emb, self.dropout)
             self.passage  = tf.nn.dropout(passage_emb, self.dropout)
 
-
     def setup_placeholders(self):
         self.question_ids = tf.placeholder(tf.int32, shape = [None, None], name = "question_ids")
         self.passage_ids = tf.placeholder(tf.int32, shape = [None, None], name = "passage_ids")
@@ -303,7 +278,6 @@ class QASystem(object):
 
         self.labels = tf.placeholder(tf.int32, shape = [None, 2], name = "gold_labels")
         self.dropout = tf.placeholder(tf.float32, shape=[], name = "dropout")
-
 
     def setup_system(self):
         """
@@ -322,7 +296,6 @@ class QASystem(object):
 
         self.logits = logits
 
-
     def setup_loss(self):
         """
         self.logits are the 2 sets of logit (num_classes) values for each example, masked with float(-inf) beyond the true sequence length
@@ -332,7 +305,6 @@ class QASystem(object):
         losses = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits[0], labels=self.labels[:,0])
         losses += tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits[1], labels=self.labels[:,1])
         self.loss = tf.reduce_mean(losses)
-
 
     def initialize_model(self, session, train_dir):
         """
@@ -350,7 +322,6 @@ class QASystem(object):
             session.run(self.init)                
             self.logger.info('Num params: %d' % sum(v.get_shape().num_elements() for v in tf.trainable_variables()))
 
-
     def test(self, session, valid):
         """
         valid: a list containing q, c and a.
@@ -358,16 +329,14 @@ class QASystem(object):
         """
         
         q, c, a = valid
-
+        
         # at test time we do not perform dropout
         input_feed =  self.get_feed_dict(q, c, a, 1.0)
-
+        
         output_feed = [self.logits]
-
         outputs = session.run(output_feed, input_feed)
 
         return outputs[0][0], outputs[0][1]
-
 
     def answer(self, session, dataset):
         '''
@@ -402,7 +371,6 @@ class QASystem(object):
  
         return (np.array(a_s), np.array(a_e))
 
-
     def evaluate_model(self, session, dataset):
         """
         :param session: session should always be centrally managed in train.py
@@ -421,6 +389,7 @@ class QASystem(object):
         em_score = 0
         em_1 = 0
         em_2 = 0
+        
         for i in xrange(sample):
             gold_s, gold_e = gold_answers[i]
             s, e = answers[i]
@@ -431,12 +400,12 @@ class QASystem(object):
 
         em_1 /= float(len(answers))
         em_2 /= float(len(answers))
+        
         self.logger.info("\nExact match on 1st token: %5.4f | Exact match on 2nd token: %5.4f\n" %(em_1, em_2))
 
         em_score /= float(len(answers))
 
         return em_score
-
 
     def run_epoch(self, session, train):
         """
@@ -446,22 +415,20 @@ class QASystem(object):
         nbatches = (len(train) + self.config.batch_size - 1) / self.config.batch_size
         prog = Progbar(target=nbatches)
 
-
         for i, (q_batch, c_batch, a_batch) in enumerate(minibatches(train, self.config.batch_size)):
 
-            # at training time, dropout needs to be on.
+            # at training time, dropout needs to be on
             input_feed = self.get_feed_dict(q_batch, c_batch, a_batch, self.config.dropout_val)
 
             _, train_loss = session.run([self.train_op, self.loss], feed_dict=input_feed)
             prog.update(i + 1, [("train loss", train_loss)])
-
 
     def train(self, session, dataset, train_dir):
         """
         Implement main training loop
 
         :param session: it should be passed in from train.py
-        :param dataset: a list containing the training and dev data
+        :param dataset: a list containing the training and validation data
         :param train_dir: path to the directory where you should save the model checkpoint
         :return:
         """
@@ -486,4 +453,3 @@ class QASystem(object):
             if (em > best_em):
                 self.saver.save(session, "%s/best_model.chk" %train_dir)
                 best_em = em
-

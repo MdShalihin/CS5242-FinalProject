@@ -9,7 +9,6 @@ import tarfile
 import argparse
 
 from six.moves import urllib
-
 from tensorflow.python.platform import gfile
 from tqdm import *
 import numpy as np

@@ -9,13 +9,10 @@ import sys
 import random
 from os.path import join as pjoin
 from config import Config
-
-
 from tqdm import tqdm
 import numpy as np
 from six.moves import xrange
 import tensorflow as tf
-
 from qa_model import Encoder, QASystem, Decoder
 from preprocessing.squad_preprocess import data_from_json, maybe_download, squad_base_url, \
     invert_map, tokenize, token_idx_map
@@ -94,7 +91,6 @@ def generate_answers(sess, model, dataset, uuid_data, rev_vocab):
     num_points = len(a)
     sample_size = 1000
 
-
     answers_canonical = []
     num_iters = int((num_points+sample_size-1)/sample_size)
 
@@ -144,6 +140,7 @@ def normalize_answer(s):
     
     return white_space_fix(remove_articles(remove_punc(lower(s))))
 
+
 def run_func():
     config = Config()
     vocab, rev_vocab = initialize_vocab(config.vocab_path)
@@ -153,17 +150,13 @@ def run_func():
     dev_filename = os.path.basename(dev_path)
     context_data, question_data, question_uuid_data = prepare_dev(dev_dirname, dev_filename, vocab)
 
-
-    
     ques_len = len(question_data)
     answers = [[0, 0] for _ in xrange(ques_len)]
 
     dataset = [question_data, context_data, answers]
 
     embed_path = config.embed_path
-
     embeddings = get_trimmed_glove_vectors(embed_path)
-
 
     encoder = Encoder(config.hidden_state_size)
     decoder = Decoder(config.hidden_state_size)

@@ -19,7 +19,6 @@ class squad_dataset(object):
                 line = map(lambda tok: int(tok), line)
                 yield line
 
-
     def __iter__(self):
         niter = 0
 
@@ -29,8 +28,6 @@ class squad_dataset(object):
 
         for question, context, answer in zip(question_file_iter, context_file_iter, answer_file_iter):
             yield (question, context, answer)
-
-
 
     def __len__(self):
         """
@@ -42,7 +39,6 @@ class squad_dataset(object):
                 self.length += 1
 
         return self.length
-
 
 
 def _pad_sequences(sequences, pad_tok, max_length):
@@ -79,8 +75,6 @@ def pad_sequences(sequences, pad_tok):
     return sequence_padded, sequence_length
 
 
-
-
 def minibatches(data, minibatch_size):
     """
     Args:
@@ -102,7 +96,6 @@ def minibatches(data, minibatch_size):
 
     if len(question_batch) != 0:
         yield question_batch, context_batch, answer_batch
-
 
 
 def get_trimmed_glove_vectors(filename):

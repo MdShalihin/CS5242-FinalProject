@@ -1,6 +1,5 @@
 import os
 import json
-
 import tensorflow as tf
 import numpy as np
 
@@ -22,19 +21,16 @@ def initialize_vocab(vocab_path):
         raise ValueError("Vocabulary file %s not found.", vocab_path)
 
 
-
 def run_func():
     config = Config()
     train = squad_dataset(config.question_train, config.context_train, config.answer_train)
     dev = squad_dataset(config.question_dev, config.context_dev, config.answer_dev)
-
 
     embed_path = config.embed_path
     vocab_path = config.vocab_path
     vocab, rev_vocab = initialize_vocab(vocab_path)
 
     embeddings = get_trimmed_glove_vectors(embed_path)
-
 
     encoder = Encoder(config.hidden_state_size)
     decoder = Decoder(config.hidden_state_size)
@@ -45,7 +41,6 @@ def run_func():
         # ====== Load a pretrained model if it exists or create a new one if no pretrained available ======
         qa.initialize_model(sess, config.train_dir)
         qa.train(sess, [train, dev], config.train_dir)
-
 
 
 if __name__ == "__main__":
