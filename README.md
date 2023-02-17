@@ -1,8 +1,4 @@
-# CS5242-FinalProject
-
-Team Members:
-- Shalihin
-- Punna Reddy Gangasani
+# Question & Answer NLP Model
 
 Start by running train.sh
 - this will ensure system meets all requirements then downloads and process all necessary data and automatically execute training in background.
